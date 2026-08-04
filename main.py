@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Depends, status
+from fastapi import FastAPI, HTTPException, Depends, status, Query
 from schemas import Cookie, TokenResponse, EmployeeLogin, EmployeeOutput, EmployeeCreate
 import schemas
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -9,7 +9,8 @@ from models import UserModel, BOX_PRICES, STANDARD_SINGLE_PRICE, MANAGEMENT_ROLE
 from collections import Counter
 from auth import verify_pin, create_access_token, hash_pin, get_current_user, verify_refresh_token, create_refresh_token
 from sqlalchemy import select
-import asyncpg
+from typing import Optional
+from sqlalchemy import asc, desc
 
 async def get_db():
     async with AsyncSessionLocal() as session:
@@ -202,9 +203,27 @@ async def get_order(order_id: int, db: AsyncSession = Depends(get_db)):
   return db_order
 
 @app.get("/cookies/", status_code=status.HTTP_200_OK)
-async def get_all_cookies(db: AsyncSession = Depends(get_db)):
-    cookies = await db.execute(select(models.CookieModel))
-    return {"data": cookies.scalars().all()}
+async def get_all_cookies(
+   limit: int = Query(10, ge=1, le=100, description="Количество записей на страницу"),
+   offset: int = Query(0, ge=0, description="Смещение" ),
+   search: Optional[str] = Query(None, description="Поиск по названию"),
+   sort_by: str = Query("id", regex="^(id|name|price)$", description="Поле для сортировки"),
+   order: str = Query("asc", regex="^(asc|desc)$", description="Порядок: asc или desc"),
+   db: AsyncSession = Depends(get_db)
+   ):
+    query = select(models.CookieModel)
+    if search:
+       query = query.where(models.CookieModel.name.ilike(f"%{search}%"))
+    if sort_by:
+       sort_column = getattr(models.CookieModel, sort_by)
+    if order == "desc":
+        query = query.order_by(desc(sort_column))
+    else:
+        query = query.order_by(asc(sort_column))  
+    query = query.offset(offset).limit(limit)
+    result = await db.execute(query)
+    cookies =  result.scalars().all()
+    return {"data": cookies}
 
 
 @app.get("/cookies/{menu_number}", status_code=status.HTTP_200_OK)
