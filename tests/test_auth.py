@@ -1,6 +1,12 @@
 import pytest
-
+from main import app, lifespan
 from tests.helpers import login_payload, employee_registration_payload
+
+@pytest.mark.asyncio
+async def test_app_lifespan():
+    async with lifespan(app):
+        pass
+
 
 
 @pytest.mark.asyncio

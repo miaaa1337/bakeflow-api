@@ -10,8 +10,8 @@ from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 import database
-from database import Base
-from main import app, get_db
+from database import Base, get_db
+from main import app
 
 TEST_DATABASE_URL = (
     "postgresql+asyncpg://postgres:my_secret_pass_123@localhost:5432/cookie_flow_test"
