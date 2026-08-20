@@ -45,36 +45,40 @@ oauth2_scheme = APIKeyHeader(name="Authorization", auto_error=False)
 async def get_current_user(
     token: str = Depends(oauth2_scheme), db: AsyncSession = Depends(get_db)
 ):
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Не удалось валидировать токен",
-    )
-    if not token:
-        raise credentials_exception
-    if token.startswith("Bearer "):
-        token = token.replace("Bearer ", "")
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        if payload.get("type") != "access":
-            raise HTTPException(
-                status_code=401, detail="Для этого действия требуется access-токен"
-            )
-        employee_id = payload.get("sub")
-        if employee_id is None:
-            raise credentials_exception
-    except JWTError:
-        raise credentials_exception
+  credentials_exception = HTTPException(
+      status_code=status.HTTP_401_UNAUTHORIZED,
+      detail="Авторизация не выполнена",
+      headers={"WWW-Authenticate": "Bearer"},
+  )
 
-    # ✅ Асинхронный поиск
-    stmt = select(models.UserModel).where(
-        models.UserModel.employee_id == int(employee_id)
-    )
-    result = await db.execute(stmt)
-    user = result.scalars().first()
+  if not token:
+    raise credentials_exception
 
-    if user is None:
-        raise HTTPException(status_code=401, detail="Авторизация не выполнена")
-    return user
+  if token.startswith("Bearer "):
+    token = token.split(" ", 1)[1]
+
+  try:
+    payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+    employee_id_raw = payload.get("sub")
+    if employee_id_raw is None:
+      raise credentials_exception
+    employee_id = int(employee_id_raw)
+  except Exception as e:
+    # 🛑 ВЫВЕДЕМ РЕАЛЬНУЮ ПРИЧИНУ ПАДЕНИЯ В КОНСОЛЬ!
+    print(f"\n🔥🔥 РЕАЛЬНАЯ ОШИБКА В GET_CURRENT_USER: {repr(e)}")
+    raise credentials_exception
+
+  stmt = select(models.UserModel).where(
+      models.UserModel.employee_id == employee_id
+  )
+  result = await db.execute(stmt)
+  user = result.scalars().first()
+
+  if user is None:
+    print(f"\n🔥🔥 ПОЛЬЗОВАТЕЛЬ С ID {employee_id} НЕ НАЙДЕН В БД!")
+    raise credentials_exception
+
+  return user
 
 
 async def verify_refresh_token(token: str, db: AsyncSession):
@@ -92,7 +96,6 @@ async def verify_refresh_token(token: str, db: AsyncSession):
     except JWTError:
         raise credentials_exception
 
-    # ✅ Асинхронный поиск
     stmt = select(models.UserModel).where(
         models.UserModel.employee_id == int(employee_id)
     )

@@ -2,26 +2,23 @@ from fastapi import FastAPI, HTTPException, Depends, status, Query
 from schemas import Cookie, TokenResponse, EmployeeLogin, EmployeeOutput, EmployeeCreate
 import schemas
 from sqlalchemy.ext.asyncio import AsyncSession
-from database import AsyncSessionLocal
 import models
-from database import engine
-from models import UserModel, BOX_PRICES, STANDARD_SINGLE_PRICE, MANAGEMENT_ROLES, BAKE_ALLOWED_ROLES, ALL_ROLES
+from database import engine, get_db
+from models import UserModel, BOX_PRICES, STANDARD_SINGLE_PRICE, MANAGEMENT_ROLES, BAKE_ALLOWED_ROLES, ALL_ROLES, ROLE_MANAGER
 from collections import Counter
 from auth import verify_pin, create_access_token, hash_pin, get_current_user, verify_refresh_token, create_refresh_token
 from sqlalchemy import select
 from typing import Optional
 from sqlalchemy import asc, desc
+from sqlalchemy.orm import selectinload
+from contextlib import asynccontextmanager
 
-async def get_db():
-    async with AsyncSessionLocal() as session:
-        yield session
-
-app = FastAPI(title="BakeFlow API")
-
-@app.on_event("startup")
-async def init_tables():
+@asynccontextmanager
+async def lifespan(app:FastAPI):
     async with engine.begin() as conn:
         await conn.run_sync(models.Base.metadata.create_all)
+
+app = FastAPI(title="BakeFlow API", lifespan=lifespan)
 
 @app.get("/")
 async def root():
@@ -44,15 +41,15 @@ async def create_cookie(cookie: Cookie, db: AsyncSession= Depends(get_db), curre
         is_available=cookie.is_available,
         stock_quantity=cookie.stock_quantity
     )
-   db.add(new_cookie)
-   await db.commit()
-   await db.refresh(new_cookie)
-   return {"message": "Печенье успешно добавлено!", "data": cookie}
+        db.add(new_cookie)
+        await db.commit()
+        await db.refresh(new_cookie)
+        return {"message": "Печенье успешно добавлено!", "data": cookie}
 
 
 @app.post("/cookies/{menu_number}/bake", status_code=status.HTTP_201_CREATED)
 async def baked_cookie(menu_number: int, amount: int, db: AsyncSession = Depends(get_db), current_user: models.UserModel = Depends(get_current_user)):
-    if current_user.role not in BAKE_ALLOWED_ROLES:
+    if current_user.role not in models.MANAGEMENT_ROLES:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,  detail="Недостаточно прав для добавления выпечки!")
     stmt = select(models.CookieModel).where(models.CookieModel.menu_number == menu_number)
     result = await db.execute(stmt)
@@ -94,8 +91,7 @@ async def create_order(
   if order_data.box_size not in BOX_PRICES:
     raise HTTPException(
         status_code=status.HTTP_400_BAD_REQUEST,
-        detail="Неверный размер коробки. Доступны варианты только на 1, 3 или 6"
-        " шт.",
+        detail="Неверный размер коробки. Доступны варианты только на 1, 3 или 6 шт.",
     )
   # 2. Проверяем соответствие количества выбранных печений
   if len(order_data.cookie_menu_numbers) != order_data.box_size:
@@ -143,6 +139,13 @@ async def create_order(
     result = await db.execute(stmt)
     db_cookie = result.scalars().first()
 
+    # Проверяем доступность ДО списания
+    if not db_cookie.is_available:
+      raise HTTPException(
+          status_code=status.HTTP_400_BAD_REQUEST,
+          detail="печенья нет в наличии"
+      )
+
     # Списываем ровно столько штук этого вида, сколько заказали!
     db_cookie.stock_quantity -= qty
     if db_cookie.stock_quantity == 0:
@@ -184,15 +187,20 @@ async def create_order(
 @app.get("/orders/", response_model=list[schemas.OrderResponse],
     status_code=status.HTTP_200_OK,)
 async def get_all_orders(db: AsyncSession = Depends(get_db)):
-   orders = await db.execute(select(models.OrderModel))
-   return orders.scalars().all()
+   stmt = select(models.OrderModel).options(selectinload(models.OrderModel.items))
+   result = await db.execute(stmt)
+   orders = result.scalars().all()
+   if not orders:
+      raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                detail="нет существующих заказов")
+   return orders
 
 @app.get("/orders/{order_id}",
     response_model=schemas.OrderResponse,
     status_code=status.HTTP_200_OK,
 )
 async def get_order(order_id: int, db: AsyncSession = Depends(get_db)):
-  stmt = select(models.OrderModel).where(models.OrderModel.id == order_id)
+  stmt = select(models.OrderModel).where(models.OrderModel.id == order_id).options(selectinload(models.OrderModel.items))
   result = await db.execute(stmt)
   db_order = result.scalars().first()
   if not db_order:
@@ -207,8 +215,8 @@ async def get_all_cookies(
    limit: int = Query(10, ge=1, le=100, description="Количество записей на страницу"),
    offset: int = Query(0, ge=0, description="Смещение" ),
    search: Optional[str] = Query(None, description="Поиск по названию"),
-   sort_by: str = Query("id", regex="^(id|name|price)$", description="Поле для сортировки"),
-   order: str = Query("asc", regex="^(asc|desc)$", description="Порядок: asc или desc"),
+   sort_by: str = Query("id", pattern="^(id|name|price)$", description="Поле для сортировки"),
+   order: str = Query("asc", pattern="^(asc|desc)$", description="Порядок: asc или desc"),
    db: AsyncSession = Depends(get_db)
    ):
     query = select(models.CookieModel)
@@ -237,7 +245,9 @@ async def get_cookie(menu_number: int, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=404, detail=f"Печенье №{menu_number} не найдено.")
 
 @app.delete("/cookies/{menu_number}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_cookie(menu_number: int, db: AsyncSession = Depends(get_db)):
+async def delete_cookie(menu_number: int, db: AsyncSession = Depends(get_db),current_user: models.UserModel = Depends(get_current_user)):
+    if current_user.role not in MANAGEMENT_ROLES:
+              raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Недостаточно прав для внедрения изменений")   
     stmt = select(models.CookieModel).where(models.CookieModel.menu_number == menu_number)
     result = await db.execute(stmt)
     db_cookie = result.scalars().first()
@@ -286,7 +296,7 @@ async def employee_login(data: EmployeeLogin, db: AsyncSession = Depends(get_db)
 
 @app.post("/register", response_model=EmployeeOutput)
 async def register_new_employee(data: EmployeeCreate, db: AsyncSession = Depends(get_db), current_user: models.UserModel = Depends(get_current_user)):
-   if current_user.role != models.ROLE_MANAGER:
+   if current_user.role not in models.MANAGEMENT_ROLES:
        raise HTTPException(
            status_code=status.HTTP_403_FORBIDDEN, 
            detail="Только менеджер может регистрировать новых сотрудников!"
@@ -305,7 +315,8 @@ async def register_new_employee(data: EmployeeCreate, db: AsyncSession = Depends
       employee_id= data.employee_id, 
       name= data.name,
       role= data.role,
-      pin_code_hash= hashed_pin
+      pin_code_hash= hashed_pin,
+      is_active = data.is_active,
    )
    db.add(new_employee)
    await db.commit()

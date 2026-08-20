@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field 
+from pydantic import BaseModel, Field, ConfigDict
 from datetime import datetime
 
 class Cookie(BaseModel):
@@ -13,21 +13,19 @@ class OrderCreate(BaseModel):
     cookie_menu_numbers: list[int] = Field(..., description="Номер печенья в меню")
 
 class OrderItemResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     cookie_id: int
     quantity: int
 
-    class Config:
-      from_attributes = True
 
 class OrderResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
     id: int
     box_size: int
     total_price: float
     created_at: datetime
     items: list[OrderItemResponse]
 
-    class Config:
-      from_attributes = True 
 
 class EmployeeLogin(BaseModel): 
    employee_id: int
@@ -39,20 +37,20 @@ class TokenResponse(BaseModel):
    token_type: str = "bearer"
 
 class EmployeeOutput(BaseModel):
+   model_config = ConfigDict(from_attributes=True)
    id: int
    employee_id: int
    name: str
    role: str
    is_active: bool
 
-   class Config:
-         from_attributes = True
 
 class EmployeeCreate(BaseModel):
     employee_id: int
     name: str
     pin_code: str
     role: str
+    is_active: bool = True
 
 class RefreshTokenRequest(BaseModel):
-    resresh_token: str
+    refresh_token: str
