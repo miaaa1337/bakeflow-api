@@ -16,12 +16,12 @@ jobs:
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: bakeflow_db
+          POSTGRES_DB: cookie_flow_test
           POSTGRES_HOST_AUTH_METHOD: trust
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U postgres -d bakeflow_db"
+          --health-cmd "pg_isready -U postgres -d cookie_flow_test"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
@@ -50,7 +50,7 @@ jobs:
 
       - name: Run pytest
         env:
-          DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/bakeflow_db
+          DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/cookie_flow_test
           SECRET_KEY: test_secret_key_for_github_actions
         run: |
           alembic upgrade head
