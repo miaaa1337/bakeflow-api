@@ -52,4 +52,5 @@ jobs:
           DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/bakeflow_db
           SECRET_KEY: test_secret_key_for_github_actions
         run: |
+          alembic upgrade head
           pytest --cache-clear --cov=main --cov-report=term-missing
