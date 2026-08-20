@@ -14,5 +14,4 @@ class Settings(BaseSettings):
 
 settings = Settings()
 
-# ⚠️ ВАЖНО: эта строчка должна быть САМОЙ ПОСЛЕДНЕЙ и ТЕКСТОМ С САМОГО НАЧАЛА СТРОКИ (без отступов/табов)!
 DATABASE_URL = settings.DATABASE_URL
