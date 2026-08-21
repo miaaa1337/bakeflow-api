@@ -20,8 +20,8 @@ A robust RESTful API designed to automate bakery operations, including inventory
 ## 🛠️ Running the Project via Docker
 1. Clone the repository:
    ```bash
-   git clone <your-repository-url>
-   cd cookie_flow
+   git clone https://github.com/miaaa1337/bakeflow-api
+   cd bakeflow
 
 2. Build and run the containers with a single command:
     ```bash
