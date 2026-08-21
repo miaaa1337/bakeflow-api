@@ -21,7 +21,7 @@ A robust RESTful API designed to automate bakery operations, including inventory
 1. Clone the repository:
    ```bash
    git clone https://github.com/miaaa1337/bakeflow-api
-   cd bakeflow
+   cd bakeflow-api
 
 2. Build and run the containers with a single command:
     ```bash
