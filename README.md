@@ -33,6 +33,6 @@ A robust RESTful API designed to automate bakery operations, including inventory
 
 ## 🧪 Running Tests Locally
 To run the full test suite with coverage reporting:
-    ```bash
+   ```bash
     pytest --cache-clear --cov=main --cov-report=term-missing
     
