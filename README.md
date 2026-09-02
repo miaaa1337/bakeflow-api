@@ -35,7 +35,13 @@ A REST API for managing bakery operations, including inventory, cookie catalogin
     http://127.0.0.1:8000/docs
 
 ## 🧪 Running Tests Locally
+
+- **46 automated tests**
+- **97% code coverage**
+- **GitHub Actions CI** for automated test execution
+
 To run the full test suite with coverage reporting:
    ```bash
     pytest --cache-clear --cov=. --cov-report=term-missing
+```
     
