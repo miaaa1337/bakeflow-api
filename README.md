@@ -1,14 +1,17 @@
 # 🍪 BakeFlow API
 
-A robust RESTful API designed to automate bakery operations, including inventory management, cookie cataloging, order processing, role-based access control (RBAC), and business analytics.
+A REST API for managing bakery operations, including inventory, cookie cataloging, order processing, role-based access control, and business analytics.
 
 ## 🚀 Tech Stack
-* **Python 3.9+, FastAPI** — High performance and fully asynchronous architecture.
-* **SQLAlchemy 2.0 (AsyncSession) + Alembic** — Asynchronous database management and migrations.
-* **PostgreSQL** — Reliable relational data storage.
-* **JWT (Access & Refresh tokens) + RBAC** — Secure authentication and strict role separation (baker / admin).
-* **PyTest + Httpx** — 46 comprehensive unit and integration tests with 97% code coverage.
-* **Docker & Docker Compose** — Full containerization for the application and database.
+
+- **Python 3.9+ / FastAPI** — asynchronous REST API
+- **PostgreSQL** — relational database
+- **SQLAlchemy 2.0 / AsyncSession** — asynchronous ORM
+- **Alembic** — database migrations
+- **JWT access & refresh tokens** — authentication
+- **RBAC** — baker and admin roles
+- **PyTest / HTTPX** — automated API testing
+- **Docker / Docker Compose** — containerized development environment
 
 ## 📊 Core Features
 * Cookie catalog management (CRUD operations, pagination, search, and filtering).
@@ -34,5 +37,5 @@ A robust RESTful API designed to automate bakery operations, including inventory
 ## 🧪 Running Tests Locally
 To run the full test suite with coverage reporting:
    ```bash
-    pytest --cache-clear --cov=main --cov-report=term-missing
+    pytest --cache-clear --cov=. --cov-report=term-missing
     
