@@ -42,6 +42,6 @@ A REST API for managing bakery operations, including inventory, cookie catalogin
 
 To run the full test suite with coverage reporting:
    ```bash
-      pytest --cache-clear --cov=. --cov-report=term-missing
+   pytest --cache-clear --cov=. --cov-report=term-missing
 ```
     
